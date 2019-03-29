@@ -2,6 +2,8 @@
 
 > Example how to use a [State Machine](https://docs.aws.amazon.com/step-functions/latest/dg/concepts-amazon-states-language.html) with [Step Functions](https://aws.amazon.com/step-functions/) to process objects stored in DynamoDB.
 
+![State Machine](/machine.png)
+
 ## Usage
 
 ### Deployment
