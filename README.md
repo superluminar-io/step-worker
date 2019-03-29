@@ -6,6 +6,14 @@
 
 ## Usage
 
+### Dependencies
+
+```bash
+# Install Go dependencies
+
+$ > make install
+```
+
 ### Deployment
 
 ```bash
