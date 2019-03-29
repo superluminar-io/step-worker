@@ -1,0 +1,101 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Resources:
+  RoleExecuteLambda:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${ParamProjectName}-execute-lambda-${ParamENV}
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - !Sub states.${AWS::Region}.amazonaws.com
+            Action: "sts:AssumeRole"
+      Path: /
+      Policies:
+        - PolicyName: !Sub ${ParamProjectName}-invoke-lambda-${ParamENV}
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [ "lambda:InvokeFunction" ]
+                Resource: "*"
+
+  FunctionProcess:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${ParamProjectName}-process-${ParamENV}
+      Runtime: go1.x
+      Timeout: 180
+      Handler: dist/process
+      Environment:
+        Variables:
+          ProjectID: !Ref ParamProjectID
+          TableName: !Sub ${ParamProjectName}-url-${ParamENV}
+          TableHash: url
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TableURL
+
+  Machine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: !Sub ${ParamProjectName}-machine-${ParamENV}
+      DefinitionString: !Sub |-
+        {
+            "Comment": "State Machine",
+            "StartAt": "Execute",
+            "States": {
+              "Execute": {
+                "Type": "Task",
+                "Comment": "Run process Lambda function",
+                "Resource": "${FunctionProcess.Arn}",
+                "ResultPath": "$.Iterator",
+                "Next": "Check"
+              },
+              "Check": {
+                "Type": "Choice",
+                "Comment": "Check if DynamoDB contains more objects for processing"
+                "Choices": [
+                  { 
+                    "Not": {
+                      "Variable": "$.Iterator.Cursor",
+                      "StringEquals": ""
+                    },
+                    "Next": "Execute"
+                  }
+                ],
+                "Default": "Done"
+              },
+              "Done": { "Type": "Pass", "End": true }
+            }
+        }
+      RoleArn: !GetAtt RoleExecuteLambda.Arn
+
+  TableURL:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${ParamProjectName}-url-${ParamENV}
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: url
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: url
+          AttributeType: S
+
+Parameters:
+  ParamProjectName:
+    Type: String
+  ParamProjectID:
+    Type: String
+  ParamENV:
+    Type: String
+
+Outputs:
+  StateMachine:
+    Description: ARN for State Machine
+    Value: !Ref Machine
