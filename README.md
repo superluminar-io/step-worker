@@ -1,14 +1,8 @@
 # DynamoDB Step Worker
 
-> Example how to use AWS [Step Functions](https://aws.amazon.com/step-functions/) and [State Machines](https://docs.aws.amazon.com/step-functions/latest/dg/concepts-amazon-states-language.html) to process objects stored in DynamoDB.
+> Example project to use AWS [Step Functions](https://aws.amazon.com/step-functions/) and [State Machines](https://docs.aws.amazon.com/step-functions/latest/dg/concepts-amazon-states-language.html) to process objects stored in DynamoDB.
 
-![State Machine](/machine.png)
-
-## Usage
-
-The CloudFormation Stack creates two [State Machines](https://docs.aws.amazon.com/step-functions/latest/dg/concepts-amazon-states-language.html): **Puppeteer** and **Worker**.
-
-The **Puppeteer** fans out the desired number of **Worker** executions to process the DynamoDB objects. The **Puppeteer** supports the following configuration:
+The CloudFormation Stack creates two State Machines: **Puppeteer** and **Worker**. You can configure the **Puppeteer** to fan out the desired number of **Worker** executions to process the DynamoDB objects with the following configuration:
 
 ```json
 {
@@ -21,6 +15,13 @@ The **Puppeteer** fans out the desired number of **Worker** executions to proces
   }
 }
 ```
+
+
+![State Machine](/machine.png)
+
+## Usage
+
+
 
 ### Dependencies
 
