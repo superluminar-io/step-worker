@@ -1,6 +1,6 @@
 # DynamoDB Step Worker
 
-> Example project to use AWS [Step Functions](https://aws.amazon.com/step-functions/) and [State Machines](https://docs.aws.amazon.com/step-functions/latest/dg/concepts-amazon-states-language.html) to process objects stored in DynamoDB.
+> Example project to use AWS [Step Functions](https://aws.amazon.com/step-functions/) and [State Machines](https://docs.aws.amazon.com/step-functions/latest/dg/concepts-amazon-states-language.html) to process objects stored in DynamoDB with parallel Scans using Segments.
 
 The CloudFormation Stack creates two State Machines: **Puppeteer** and **Worker**. You can configure the **Puppeteer** to fan out the desired number of **Worker** executions to process the DynamoDB objects with the following configuration:
 
