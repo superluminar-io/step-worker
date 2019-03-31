@@ -6,7 +6,11 @@ include .faas
 install:
 	@ dep ensure
 
-build:
-	@ GOOS=linux go build -o ./dist/process ./src/process
+build-%:
+	@ GOOS=linux go build -ldflags="-s -w" -o ./dist/$* ./src/$*
+
+build: build-check
+build: build-fan
+build: build-process
 
 .PHONY: install build

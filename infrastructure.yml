@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 
 Resources:
@@ -24,6 +24,39 @@ Resources:
                 Action: [ "lambda:InvokeFunction" ]
                 Resource: "*"
 
+  FunctionCheck:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${ParamProjectName}-check-${ParamENV}
+      Runtime: go1.x
+      Timeout: 180
+      Handler: dist/check
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - "states:*"
+              Resource: "*"
+
+  FunctionFan:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${ParamProjectName}-fan-${ParamENV}
+      Runtime: go1.x
+      Timeout: 180
+      Handler: dist/fan
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - "states:*"
+              Resource: "*"
+      Environment:
+        Variables:
+          MachineWorker: !Ref MachineWorker
+
   FunctionProcess:
     Type: AWS::Serverless::Function
     Properties:
@@ -31,19 +64,86 @@ Resources:
       Runtime: go1.x
       Timeout: 180
       Handler: dist/process
-      Environment:
-        Variables:
-          ProjectID: !Ref ParamProjectID
-          TableName: !Sub ${ParamProjectName}-url-${ParamENV}
-          TableHash: url
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref TableURL
 
-  Machine:
+  MachinePuppeteer:
     Type: AWS::StepFunctions::StateMachine
     Properties:
-      StateMachineName: !Sub ${ParamProjectName}-machine-${ParamENV}
+      StateMachineName: !Sub ${ParamProjectName}-puppeteer-${ParamENV}
+      DefinitionString: !Sub |-
+        {
+            "Comment": "Process objects in DynamoDB",
+            "StartAt": "Initialize",
+            "States": {
+              "Initialize": {
+                "Type": "Choice",
+                "Comment": "Check if Configuration is passed",
+                "Choices": [
+                  { 
+                    "Variable": "$.Configuration.TableName",
+                    "StringEquals": "",
+                    "Next": "Scale"
+                  },
+                  { 
+                    "Variable": "$.Configuration.TableHash",
+                    "StringEquals": "",
+                    "Next": "Scale"
+                  },
+                  { 
+                    "Variable": "$.Configuration.Workers",
+                    "NumericGreaterThan": 0,
+                    "Next": "Scale"
+                  },
+                  { 
+                    "Variable": "$.Configuration.BatchSize",
+                    "NumericGreaterThan": 0,
+                    "Next": "Scale"
+                  }
+                ],
+                "Default": "Scale"
+              },
+              "Scale": {
+                "Type": "Task",
+                "Comment": "Start Machine Execution(s)",
+                "Resource": "${FunctionFan.Arn}",
+                "ResultPath": "$.ExecutionList",
+                "Next": "Status"
+              },
+              "Status": {
+                "Type": "Task",
+                "Comment": "Get Status for Execution(s)",
+                "Resource": "${FunctionCheck.Arn}",
+                "ResultPath": "$.ExecutionList",
+                "Next": "CheckAllDone"
+              },
+              "CheckAllDone": {
+                "Type": "Choice",
+                "Comment": "Check if all Workers are finished",
+                "Choices": [
+                  { 
+                    "Variable": "$.ExecutionList.Status",
+                    "StringEquals": "SUCCEEDED",
+                    "Next": "Done"
+                  }
+                ],
+                "Default": "Wait"
+              },
+              "Wait": {
+                "Type": "Wait",
+                "Seconds": 2,
+                "Next": "Status"
+              },
+              "Done": { "Type": "Pass", "End": true }
+            }
+        }
+      RoleArn: !GetAtt RoleExecuteLambda.Arn
+
+  MachineWorker:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: !Sub ${ParamProjectName}-worker-${ParamENV}
       DefinitionString: !Sub |-
         {
             "Comment": "State Machine",
@@ -58,7 +158,7 @@ Resources:
               },
               "Check": {
                 "Type": "Choice",
-                "Comment": "Check if DynamoDB contains more objects for processing"
+                "Comment": "Check if DynamoDB contains more objects for processing",
                 "Choices": [
                   { 
                     "Not": {
@@ -90,12 +190,10 @@ Resources:
 Parameters:
   ParamProjectName:
     Type: String
-  ParamProjectID:
-    Type: String
   ParamENV:
     Type: String
 
 Outputs:
-  StateMachine:
+  Puppeteer:
     Description: ARN for State Machine
-    Value: !Ref Machine
+    Value: !Ref MachinePuppeteer
