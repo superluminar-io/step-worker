@@ -136,9 +136,9 @@ Resources:
                 "Next": "Status"
               },
               "InvalidConfiguration": {
-                "Type": "Pass",
-                "Result": "Invalid Configuration for Execution!",
-                "End": true
+                "Type": "Fail",
+                "Cause": "Invalid Configuration for Execution!",
+                "Error": "InvalidConfiguration"
               },
               "Done": {
                 "Type": "Pass",
