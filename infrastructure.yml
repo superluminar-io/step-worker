@@ -36,8 +36,8 @@ Resources:
           Statement:
             - Effect: Allow
               Action:
-                - "states:*"
-              Resource: "*"
+                - "states:DescribeExecution"
+              Resource: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:execution:${MachineWorker.Name}:*"
 
   FunctionFan:
     Type: AWS::Serverless::Function
@@ -51,8 +51,8 @@ Resources:
           Statement:
             - Effect: Allow
               Action:
-                - "states:*"
-              Resource: "*"
+                - "states:StartExecution"
+              Resource: !Ref MachineWorker
       Environment:
         Variables:
           MachineWorker: !Ref MachineWorker
@@ -84,22 +84,22 @@ Resources:
                   { 
                     "Variable": "$.Configuration.TableName",
                     "StringEquals": "",
-                    "Next": "Scale"
+                    "Next": "InvalidConfiguration"
                   },
                   { 
                     "Variable": "$.Configuration.TableHash",
                     "StringEquals": "",
-                    "Next": "Scale"
+                    "Next": "InvalidConfiguration"
                   },
                   { 
                     "Variable": "$.Configuration.Workers",
-                    "NumericGreaterThan": 0,
-                    "Next": "Scale"
+                    "NumericLessThan": 1,
+                    "Next": "InvalidConfiguration"
                   },
                   { 
                     "Variable": "$.Configuration.BatchSize",
-                    "NumericGreaterThan": 0,
-                    "Next": "Scale"
+                    "NumericLessThan": 1,
+                    "Next": "InvalidConfiguration"
                   }
                 ],
                 "Default": "Scale"
@@ -135,7 +135,15 @@ Resources:
                 "Seconds": 2,
                 "Next": "Status"
               },
-              "Done": { "Type": "Pass", "End": true }
+              "InvalidConfiguration": {
+                "Type": "Pass",
+                "Result": "Invalid Configuration for Execution!",
+                "End": true
+              },
+              "Done": {
+                "Type": "Pass",
+                "End": true
+              }
             }
         }
       RoleArn: !GetAtt RoleExecuteLambda.Arn
@@ -170,7 +178,10 @@ Resources:
                 ],
                 "Default": "Done"
               },
-              "Done": { "Type": "Pass", "End": true }
+              "Done": {
+                "Type": "Pass",
+                "End": true
+              }
             }
         }
       RoleArn: !GetAtt RoleExecuteLambda.Arn
@@ -195,5 +206,5 @@ Parameters:
 
 Outputs:
   Puppeteer:
-    Description: ARN for State Machine
+    Description: ARN for Puppeteer State Machine
     Value: !Ref MachinePuppeteer

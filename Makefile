@@ -9,6 +9,7 @@ install:
 build-%:
 	@ GOOS=linux go build -ldflags="-s -w" -o ./dist/$* ./src/$*
 
+build: clean
 build: build-check
 build: build-fan
 build: build-process
